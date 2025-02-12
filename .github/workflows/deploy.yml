@@ -32,11 +32,11 @@ jobs:
           HOST: ${{ secrets.EC2_HOST }}
           USER: ubuntu
         run: |
-          echo "$PRIVATE_KEY" > private_key.pem
+          echo -e "$PRIVATE_KEY" > private_key.pem  # Preserve key formatting
           chmod 600 private_key.pem
 
           ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
-            cd /home/ubuntu/
+            cd /home/ubuntu/fastapi-book-project  # Ensure we are in the correct repo directory
             git pull origin main  # Pull latest changes
             docker stop fastapi-container || true  # Stop old container if running
             docker rm fastapi-container || true  # Remove old container
