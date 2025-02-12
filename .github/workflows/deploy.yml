@@ -3,7 +3,7 @@ name: Deployment Pipeline
 on:
   push:
     branches:
-      - main  # Run deployment only when code is merged into main
+      - main  # Run deployment when code is merged into main
 
 jobs:
   deploy:
@@ -26,12 +26,24 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Deploy Application
+      - name: Deploy to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ubuntu
         run: |
-          echo "🚀 Deploying application..."
-          # Here, add the real deployment command (e.g., SSH, Docker, etc.)
-          # Example:
-          # ssh user@server 'cd /path/to/app && git pull && systemctl restart app'
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
+            cd /home/ubuntu/
+            git pull origin main  # Pull latest changes
+            docker stop fastapi-container || true  # Stop old container if running
+            docker rm fastapi-container || true  # Remove old container
+            docker rmi fastapi-app || true  # Remove old Docker image
+            docker build -t fastapi-app .
+            docker run -d --name fastapi-container -p 8000:8000 fastapi-app
+          EOF
 
       - name: Deployment Completed
         run: echo "🎉 Deployment successful!"
