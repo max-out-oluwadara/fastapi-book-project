@@ -66,7 +66,7 @@ async def delete_book(book_id: int) -> None:
 async def get_book(book_id: int) -> Book:
     # Check if the book exists in the in-memory database
     if book_id not in db.books:
-        raise HTTPException(status_code=404, detail="Book not found")
+        raise HTTPException(status_code=404, detail="Book not found.")
 
     # Return the found book
     return db.books[book_id]
