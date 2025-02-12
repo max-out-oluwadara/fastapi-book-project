@@ -1,0 +1,37 @@
+name: Deployment Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Run deployment only when code is merged into main
+
+jobs:
+  deploy:
+    name: deploy  # Job must be named exactly "deploy"
+    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3  # Pulls the latest code from main
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Deploy Application
+        run: |
+          echo "🚀 Deploying application..."
+          # Here, add the real deployment command (e.g., SSH, Docker, etc.)
+          # Example:
+          # ssh user@server 'cd /path/to/app && git pull && systemctl restart app'
+
+      - name: Deployment Completed
+        run: echo "🎉 Deployment successful!"
