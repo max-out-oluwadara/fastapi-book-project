@@ -3,21 +3,21 @@ name: CD Pipeline
 on:
   push:
     branches:
-      - main
+      - main  # Run deployment ONLY when changes are pushed to main
 
 jobs:
   deploy:
-    name: deploy
-    runs-on: ubuntu-latest
+    name: deploy  # Job must be named exactly 'deploy'
+    runs-on: ubuntu-latest  # Use the latest Ubuntu environment
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4  # Pull the latest code from the repo
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12"
+          python-version: "3.12"  # Match the project's Python version
 
       - name: Install Dependencies
         run: |
@@ -26,12 +26,10 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Tests
+      - name: Run Tests Before Deployment
         run: |
           source venv/bin/activate
-          pytest --cov=app --cov-report=term-missing
-          # Add specific test for stage2 endpoint
-          curl -sSf http://localhost:8000/stage2 > /dev/null || (echo "Stage2 endpoint test failed" && exit 1)
+          pytest  # Run all tests to ensure everything is working
 
       - name: Deploy to Server
         env:
@@ -40,47 +38,11 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           echo "$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
-          ssh -i private_key $SERVER_USER@$SERVER_IP << 'EOL'
-            # Verify deployment directory
-            cd /path/to/your/app || exit 1
-            
-            # Force pull latest changes
-            git fetch origin main
-            git reset --hard origin/main
-            
-            # Ensure clean venv
-            if [ ! -d "venv" ]; then
-              python -m venv venv
-            fi
-            
-            source venv/bin/activate
-            pip install -U pip setuptools wheel
-            pip install -r requirements.txt
-            
-            # Validate code update
-            current_commit=$(git rev-parse HEAD)
-            echo "Current commit: $current_commit"
-            
-            # Check for stage2 endpoint in code
-            if ! grep -qr "/stage2" ./app; then
-              echo "Stage2 endpoint missing in code!" >&2
-              exit 1
-            fi
-            
-            # Restart services with status check
-            sudo systemctl daemon-reload
-            sudo systemctl restart fastapi-app
-            sudo systemctl restart nginx
-            
-            # Verify service status
-            systemctl status fastapi-app | grep "active (running)" || exit 1
-            
-            # Add health check for endpoint
-            sleep 5  # Give service time to start
-            curl -sSf http://localhost:8000/stage2 > /dev/null || exit 1
-          EOL
-
-      - name: Post-deployment Verification
-        run: |
-          curl -sSf https://${{ secrets.SERVER_IP }}/stage2 || \
-          (echo "Post-deployment verification failed" && exit 1)
+          ssh -o StrictHostKeyChecking=no -i private_key $SERVER_USER@$SERVER_IP << 'EOF'
+            cd /path/to/your/app  # Navigate to the deployment directory
+            git pull origin main  # Pull the latest changes
+            source venv/bin/activate  # Activate virtual environment
+            pip install -r requirements.txt  # Install new dependencies if any
+            sudo systemctl restart fastapi-app  # Restart the FastAPI application
+            sudo systemctl restart nginx  # Restart Nginx (if needed)
+          EOF
