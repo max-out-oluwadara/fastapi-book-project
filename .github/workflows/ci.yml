@@ -1,0 +1,33 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main  # Run tests only when a PR is made to 'main'
+
+jobs:
+  test:
+    name: test  # Job must be named exactly 'test'
+    runs-on: ubuntu-latest  # Use the latest Ubuntu environment
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4  # Pull the latest code from the repo
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"  # Match the project's Python version
+
+      - name: Install Dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Tests with pytest
+        run: |
+          source venv/bin/activate
+          pytest  # Run all tests
+
