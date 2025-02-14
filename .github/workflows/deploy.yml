@@ -3,21 +3,21 @@ name: CD Pipeline
 on:
   push:
     branches:
-      - main  # Run deployment ONLY when changes are pushed to main
+      - main
 
 jobs:
   deploy:
-    name: deploy  # Job must be named exactly 'deploy'
-    runs-on: ubuntu-latest  # Use the latest Ubuntu environment
+    name: deploy
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4  # Pull the latest code from the repo
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12"  # Match the project's Python version
+          python-version: "3.12"
 
       - name: Install Dependencies
         run: |
@@ -29,7 +29,7 @@ jobs:
       - name: Run Tests Before Deployment
         run: |
           source venv/bin/activate
-          pytest  # Run all tests to ensure everything is working
+          pytest
 
       - name: Deploy to Server
         env:
@@ -39,10 +39,28 @@ jobs:
         run: |
           echo "$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key $SERVER_USER@$SERVER_IP << 'EOF'
-            cd /path/to/your/app  # Navigate to the deployment directory
-            git pull origin main  # Pull the latest changes
-            source venv/bin/activate  # Activate virtual environment
-            pip install -r requirements.txt  # Install new dependencies if any
-            sudo systemctl restart fastapi-app  # Restart the FastAPI application
-            sudo systemctl restart nginx  # Restart Nginx (if needed)
+            # Navigate to the correct application directory
+            cd /home/$SERVER_USER/fastapi-book-project
+
+            # Pull latest changes
+            git pull origin main
+
+            # Update virtual environment
+            python -m venv venv || true
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            # Restart the application service
+            sudo systemctl restart fastapi-app
+
+            # Verify the service is running
+            systemctl is-active --quiet fastapi-app && echo "Service is running" || echo "Service failed to start"
           EOF
+
+      - name: Verify Deployment
+        run: |
+          # Wait for the service to be fully up
+          sleep 10
+          # Test the endpoint
+          curl -f http://${{ secrets.SERVER_IP }}/stage2 || exit 1
