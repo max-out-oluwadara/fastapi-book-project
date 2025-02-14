@@ -1,24 +1,24 @@
 name: CD Pipeline
-
 on:
   push:
-    branches:
-      - main  # Run deployment ONLY when changes are pushed to main
+    branches: [main]
 
 jobs:
   deploy:
-    name: deploy  # Job must be named exactly 'deploy'
-    runs-on: ubuntu-latest  # Use the latest Ubuntu environment
-
+    name: deploy
+    runs-on: ubuntu-latest
     steps:
+      # 1. Checkout code
       - name: Checkout Repository
-        uses: actions/checkout@v4  # Pull the latest code from the repo
+        uses: actions/checkout@v4
 
+      # 2. Setup Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.12"  # Match the project's Python version
+          python-version: "3.12"
 
+      # 3. Install dependencies
       - name: Install Dependencies
         run: |
           python -m venv venv
@@ -26,11 +26,13 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
+      # 4. Run tests (optional but recommended)
       - name: Run Tests Before Deployment
         run: |
           source venv/bin/activate
-          pytest  # Run all tests to ensure everything is working
+          pytest
 
+      # 5. ***THIS IS WHERE THE DEPLOY STEP GOES***
       - name: Deploy to Server
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -39,10 +41,11 @@ jobs:
         run: |
           echo "$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key $SERVER_USER@$SERVER_IP << 'EOF'
-            cd /path/to/your/app  # Navigate to the deployment directory
-            git pull origin main  # Pull the latest changes
-            source venv/bin/activate  # Activate virtual environment
-            pip install -r requirements.txt  # Install new dependencies if any
-            sudo systemctl restart fastapi-app  # Restart the FastAPI application
-            sudo systemctl restart nginx  # Restart Nginx (if needed)
+            cd /path/to/your/app  # ⚠️ REPLACE WITH YOUR ACTUAL DEPLOYMENT PATH
+            git fetch origin main
+            git reset --hard origin/main
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart fastapi-app
+            sudo systemctl restart nginx
           EOF
