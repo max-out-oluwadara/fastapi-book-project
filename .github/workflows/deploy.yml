@@ -25,7 +25,7 @@ jobs:
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov  # Ensure pytest-cov is installed
+          pip install pytest pytest-cov
 
       # 4. Debug Virtual Environment (Check if it's activated properly)
       - name: Debug Virtual Environment
@@ -41,19 +41,28 @@ jobs:
           source venv/bin/activate
           pytest --cov=app --cov-report=term-missing || exit 1
 
-      # 6. Start FastAPI in Background for Endpoint Test
-      - name: Start FastAPI in Background
+      # 6. Start FastAPI in Background (Ensure it's accessible)
+      - name: Start FastAPI Server
         run: |
           source venv/bin/activate
-          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > fastapi.log 2>&1 &
 
-      # 7. Test Stage2 Endpoint
+      # 7. Wait for FastAPI to Start
+      - name: Wait for FastAPI to be Ready
+        run: |
+          for i in {1..10}; do
+            curl -sSf http://localhost:8000/docs && echo "FastAPI is up" && exit 0
+            echo "Waiting for FastAPI..."
+            sleep 3
+          done
+          echo "FastAPI did not start in time" && exit 1
+
+      # 8. Test Stage2 Endpoint
       - name: Run Stage2 Endpoint Test
         run: |
-          sleep 5  # Wait for FastAPI to start
           curl -sSf http://localhost:8000/stage2 > /dev/null || (echo "Stage2 endpoint test failed" && exit 1)
 
-      # 8. Deploy to Server
+      # 9. Deploy to Server
       - name: Deploy to Server
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
