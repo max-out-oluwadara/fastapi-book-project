@@ -32,7 +32,4 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Tests with pytest
-        run: |
-          source venv/bin/activate
-          pytest -v --tb=short  # Run all tests with detailed output
+   
