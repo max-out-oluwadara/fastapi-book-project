@@ -8,26 +8,26 @@ jobs:
     name: Deploy FastAPI App
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout code
+      # 1️⃣ Checkout code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Setup Python
+      # 2️⃣ Setup Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.12"
 
-      # 3. Install dependencies
+      # 3️⃣ Install dependencies
       - name: Install Dependencies
         run: |
           python -m venv venv
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov uvicorn
+          pip install pytest pytest-cov uvicorn  # Ensure uvicorn is installed
 
-      # 4. Debug File Structure and Python Path
+      # 4️⃣ Debug File Structure and Python Path
       - name: Debug File Structure
         run: |
           ls -l
@@ -36,29 +36,27 @@ jobs:
           source venv/bin/activate
           python -c "import sys; print(sys.path)"
 
-      # 5. Run Tests with Coverage
+      # 5️⃣ Run Tests with Coverage
       - name: Run Tests Before Deployment
         run: |
           source venv/bin/activate
-          pytest --cov=app --cov-report=term-missing || exit 1
+          export PYTHONPATH=$PWD  # Ensure Python can find main.py
+          pytest tests --cov=main --cov-report=term-missing || exit 1
 
-      # 6. Ensure `__init__.py` Exists
-      - name: Ensure `__init__.py` is Present
-        run: |
-          touch app/__init__.py  # Ensure it's a Python module
-
-      # 7. Start FastAPI Server
+      # 6️⃣ Start FastAPI Server and Print Logs
       - name: Start FastAPI Server
         run: |
           source venv/bin/activate
-          export PYTHONPATH=$PWD  # Ensure correct import path
-          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload > fastapi.log 2>&1 &
+          export PYTHONPATH=$PWD  # Ensure FastAPI can find modules
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 --reload > fastapi.log 2>&1 &
+          sleep 3  # Give FastAPI time to start
+          cat fastapi.log || echo "❌ No logs found"
 
-      # 8. Wait for FastAPI to Start
+      # 7️⃣ Wait for FastAPI to Start (Using 127.0.0.1 Instead of localhost)
       - name: Wait for FastAPI to be Ready
         run: |
           for i in {1..20}; do
-            if curl -sSf http://localhost:8000/docs > /dev/null; then
+            if curl -sSf http://127.0.0.1:8000/docs > /dev/null; then
               echo "✅ FastAPI is up"
               exit 0
             fi
@@ -66,15 +64,15 @@ jobs:
             sleep 3
           done
           echo "❌ FastAPI did not start in time. Debugging logs:"
-          tail -n 20 fastapi.log
+          cat fastapi.log || echo "❌ No logs found"
           exit 1
 
-      # 9. Test Stage2 Endpoint
+      # 8️⃣ Test Stage2 Endpoint
       - name: Run Stage2 Endpoint Test
         run: |
-          curl -sSf http://localhost:8000/stage2 > /dev/null || (echo "Stage2 endpoint test failed" && exit 1)
+          curl -sSf http://127.0.0.1:8000/stage2 > /dev/null || (echo "Stage2 endpoint test failed" && exit 1)
 
-      # 10. Deploy to Server
+      # 9️⃣ Deploy to Server
       - name: Deploy to Server
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
