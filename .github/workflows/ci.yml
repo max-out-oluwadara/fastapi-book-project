@@ -32,4 +32,17 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-   
+      - name: Debug main.py File (Check for corruption)
+        run: |
+          echo "🔍 Checking main.py contents..."
+          if [ ! -f main.py ]; then
+            echo "❌ main.py not found!"
+            exit 1
+          fi
+          cat main.py
+          python -m py_compile main.py || (echo "❌ Syntax error in main.py!" && exit 1)
+
+      - name: Run Tests with pytest
+        run: |
+          source venv/bin/activate
+          pytest -v --tb=short  # Run all tests with detailed output
