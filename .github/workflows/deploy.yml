@@ -25,7 +25,7 @@ jobs:
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov uvicorn  # Ensure uvicorn is installed
 
       # 4. Debug Virtual Environment (Check if it's activated properly)
       - name: Debug Virtual Environment
@@ -47,15 +47,20 @@ jobs:
           source venv/bin/activate
           nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > fastapi.log 2>&1 &
 
-      # 7. Wait for FastAPI to Start
+      # 7. Wait for FastAPI to Start (Check Logs for Errors)
       - name: Wait for FastAPI to be Ready
         run: |
-          for i in {1..10}; do
-            curl -sSf http://localhost:8000/docs && echo "FastAPI is up" && exit 0
-            echo "Waiting for FastAPI..."
+          for i in {1..20}; do  # Wait up to 60 seconds
+            if curl -sSf http://localhost:8000/docs > /dev/null; then
+              echo "✅ FastAPI is up"
+              exit 0
+            fi
+            echo "⏳ Waiting for FastAPI to start..."
             sleep 3
           done
-          echo "FastAPI did not start in time" && exit 1
+          echo "❌ FastAPI did not start in time. Debugging logs:"
+          tail -n 20 fastapi.log  # Show last 20 lines of logs
+          exit 1
 
       # 8. Test Stage2 Endpoint
       - name: Run Stage2 Endpoint Test
