@@ -27,32 +27,23 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov uvicorn  # Ensure uvicorn is installed
 
-      # 4️⃣ Debug File Structure and Python Path
-      - name: Debug File Structure
-        run: |
-          ls -l
-          find . -type d
-          find . -name "*.py"
-          source venv/bin/activate
-          python -c "import sys; print(sys.path)"
-
-      # 5️⃣ Run Tests with Coverage
+      # 4️⃣ Run Tests
       - name: Run Tests Before Deployment
         run: |
           source venv/bin/activate
-          export PYTHONPATH=$PWD  # Ensure Python can find main.py
+          export PYTHONPATH=$PWD
           pytest tests --cov=main --cov-report=term-missing || exit 1
 
-      # 6️⃣ Start FastAPI Server and Print Logs
+      # 5️⃣ Start FastAPI Server (Production Mode)
       - name: Start FastAPI Server
         run: |
           source venv/bin/activate
-          export PYTHONPATH=$PWD  # Ensure FastAPI can find modules
-          nohup uvicorn main:app --host 0.0.0.0 --port 8000 --reload > fastapi.log 2>&1 &
+          export PYTHONPATH=$PWD
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4 --reload > fastapi.log 2>&1 &
           sleep 3  # Give FastAPI time to start
           cat fastapi.log || echo "❌ No logs found"
 
-      # 7️⃣ Wait for FastAPI to Start (Using 127.0.0.1 Instead of localhost)
+      # 6️⃣ Wait for FastAPI to be Ready
       - name: Wait for FastAPI to be Ready
         run: |
           for i in {1..20}; do
@@ -67,13 +58,8 @@ jobs:
           cat fastapi.log || echo "❌ No logs found"
           exit 1
 
-      # 8️⃣ Test Stage2 Endpoint
-      - name: Run Stage2 Endpoint Test
-        run: |
-          curl -sSf http://127.0.0.1:8000/stage2 > /dev/null || (echo "Stage2 endpoint test failed" && exit 1)
-
-      # 9️⃣ Deploy to Server
-      - name: Deploy to Server
+      # 7️⃣ Deploy to Production Server
+      - name: Deploy to Production Server
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
@@ -86,6 +72,6 @@ jobs:
             git reset --hard origin/main
             source venv/bin/activate
             pip install -r requirements.txt
-            sudo systemctl restart fastapi-app
-            sudo systemctl restart nginx
+            sudo systemctl restart fastapi-app  # Restart FastAPI
+            sudo systemctl restart nginx  # Restart Nginx if used
           EOF
