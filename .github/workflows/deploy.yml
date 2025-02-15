@@ -18,23 +18,28 @@ jobs:
         with:
           python-version: "3.12"
 
-      # 3️⃣ Install dependencies
+      # 3️⃣ Install dependencies (Force Clean Install)
       - name: Install Dependencies
         run: |
           python -m venv venv
           source venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov uvicorn  # Ensure uvicorn is installed
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir pytest pytest-cov uvicorn  # Ensure uvicorn is installed
 
-      # 4️⃣ Run Tests
+      # 4️⃣ Debug main.py File (Check for corruption)
+      - name: Debug main.py File
+        run: |
+          cat main.py || echo "❌ main.py not found"
+
+      # 5️⃣ Run Tests with Debugging
       - name: Run Tests Before Deployment
         run: |
           source venv/bin/activate
           export PYTHONPATH=$PWD
-          pytest tests --cov=main --cov-report=term-missing || exit 1
+          pytest -v --tb=short || exit 1  # Verbose test output
 
-      # 5️⃣ Start FastAPI Server (Production Mode)
+      # 6️⃣ Start FastAPI Server (Production Mode)
       - name: Start FastAPI Server
         run: |
           source venv/bin/activate
@@ -43,7 +48,7 @@ jobs:
           sleep 3  # Give FastAPI time to start
           cat fastapi.log || echo "❌ No logs found"
 
-      # 6️⃣ Wait for FastAPI to be Ready
+      # 7️⃣ Wait for FastAPI to be Ready
       - name: Wait for FastAPI to be Ready
         run: |
           for i in {1..20}; do
@@ -58,7 +63,7 @@ jobs:
           cat fastapi.log || echo "❌ No logs found"
           exit 1
 
-      # 7️⃣ Deploy to Production Server
+      # 8️⃣ Deploy to Production Server
       - name: Deploy to Production Server
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
