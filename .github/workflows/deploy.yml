@@ -1,5 +1,4 @@
 name: CD Pipeline
-
 on:
   push:
     branches: [main]
@@ -33,7 +32,7 @@ jobs:
         run: |
           cat main.py || echo "❌ main.py not found"
 
-      # 5️⃣ Run Tests Before Deployment
+      # 5️⃣ Run Tests with Debugging
       - name: Run Tests Before Deployment
         run: |
           source venv/bin/activate
@@ -73,23 +72,11 @@ jobs:
         run: |
           echo "$SSH_PRIVATE_KEY" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key $SERVER_USER@$SERVER_IP << 'EOF'
-            set -e  # Stop execution on error
-
-            # 1️⃣ Navigate to project directory
             cd /path/to/your/app  # ⚠️ REPLACE WITH YOUR ACTUAL DEPLOYMENT PATH
-
-            # 2️⃣ Ensure we pull the latest version correctly
-            git fetch --all
+            git fetch origin main
             git reset --hard origin/main
-            git clean -df  # Remove untracked files
-
-            # 3️⃣ Activate virtual environment
             source venv/bin/activate
-
-            # 4️⃣ Reinstall dependencies
-            pip install --no-cache-dir -r requirements.txt
-
-            # 5️⃣ Restart FastAPI and Nginx
+            pip install -r requirements.txt
             sudo systemctl restart fastapi-app  # Restart FastAPI
             sudo systemctl restart nginx  # Restart Nginx if used
           EOF
