@@ -5,7 +5,7 @@ on:
 
 jobs:
   deploy:
-    name: deploy
+    name: Deploy FastAPI App
     runs-on: ubuntu-latest
     steps:
       # 1. Checkout code
@@ -25,14 +25,35 @@ jobs:
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pytest pytest-cov  # Ensure pytest-cov is installed
 
-      # 4. Run tests (optional but recommended)
+      # 4. Debug Virtual Environment (Check if it's activated properly)
+      - name: Debug Virtual Environment
+        run: |
+          source venv/bin/activate
+          which python
+          python --version
+          pip list
+
+      # 5. Run Tests with Coverage
       - name: Run Tests Before Deployment
         run: |
           source venv/bin/activate
-          pytest
+          pytest --cov=app --cov-report=term-missing || exit 1
 
-      # 5. ***THIS IS WHERE THE DEPLOY STEP GOES***
+      # 6. Start FastAPI in Background for Endpoint Test
+      - name: Start FastAPI in Background
+        run: |
+          source venv/bin/activate
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+
+      # 7. Test Stage2 Endpoint
+      - name: Run Stage2 Endpoint Test
+        run: |
+          sleep 5  # Wait for FastAPI to start
+          curl -sSf http://localhost:8000/stage2 > /dev/null || (echo "Stage2 endpoint test failed" && exit 1)
+
+      # 8. Deploy to Server
       - name: Deploy to Server
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
