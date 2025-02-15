@@ -16,6 +16,8 @@ jobs:
 
       - name: Ensure Latest Code is Pulled
         run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git remote set-url origin https://github.com/hngprojects/fastapi-book-project.git
           git fetch --all
           git reset --hard origin/main
           git clean -df  # Removes untracked files
