@@ -25,14 +25,16 @@ jobs:
           source venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov uvicorn  # Ensure uvicorn is installed
+          pip install pytest pytest-cov uvicorn
 
-      # 4. Debug Python Path and Project Structure
-      - name: Debug Python Path
+      # 4. Debug File Structure and Python Path
+      - name: Debug File Structure
         run: |
+          ls -l
+          find . -type d
+          find . -name "*.py"
           source venv/bin/activate
           python -c "import sys; print(sys.path)"
-          ls -l  # Check the structure
 
       # 5. Run Tests with Coverage
       - name: Run Tests Before Deployment
@@ -40,17 +42,22 @@ jobs:
           source venv/bin/activate
           pytest --cov=app --cov-report=term-missing || exit 1
 
-      # 6. Start FastAPI in Background (Ensure it's accessible)
+      # 6. Ensure `__init__.py` Exists
+      - name: Ensure `__init__.py` is Present
+        run: |
+          touch app/__init__.py  # Ensure it's a Python module
+
+      # 7. Start FastAPI Server
       - name: Start FastAPI Server
         run: |
           source venv/bin/activate
-          export PYTHONPATH=$PWD  # Ensure Python finds `app`
+          export PYTHONPATH=$PWD  # Ensure correct import path
           nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload > fastapi.log 2>&1 &
 
-      # 7. Wait for FastAPI to Start (Check Logs for Errors)
+      # 8. Wait for FastAPI to Start
       - name: Wait for FastAPI to be Ready
         run: |
-          for i in {1..20}; do  # Wait up to 60 seconds
+          for i in {1..20}; do
             if curl -sSf http://localhost:8000/docs > /dev/null; then
               echo "✅ FastAPI is up"
               exit 0
@@ -59,15 +66,15 @@ jobs:
             sleep 3
           done
           echo "❌ FastAPI did not start in time. Debugging logs:"
-          tail -n 20 fastapi.log  # Show last 20 lines of logs
+          tail -n 20 fastapi.log
           exit 1
 
-      # 8. Test Stage2 Endpoint
+      # 9. Test Stage2 Endpoint
       - name: Run Stage2 Endpoint Test
         run: |
           curl -sSf http://localhost:8000/stage2 > /dev/null || (echo "Stage2 endpoint test failed" && exit 1)
 
-      # 9. Deploy to Server
+      # 10. Deploy to Server
       - name: Deploy to Server
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
