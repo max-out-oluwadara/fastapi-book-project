@@ -27,13 +27,12 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov uvicorn  # Ensure uvicorn is installed
 
-      # 4. Debug Virtual Environment (Check if it's activated properly)
-      - name: Debug Virtual Environment
+      # 4. Debug Python Path and Project Structure
+      - name: Debug Python Path
         run: |
           source venv/bin/activate
-          which python
-          python --version
-          pip list
+          python -c "import sys; print(sys.path)"
+          ls -l  # Check the structure
 
       # 5. Run Tests with Coverage
       - name: Run Tests Before Deployment
@@ -45,7 +44,8 @@ jobs:
       - name: Start FastAPI Server
         run: |
           source venv/bin/activate
-          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > fastapi.log 2>&1 &
+          export PYTHONPATH=$PWD  # Ensure Python finds `app`
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload > fastapi.log 2>&1 &
 
       # 7. Wait for FastAPI to Start (Check Logs for Errors)
       - name: Wait for FastAPI to be Ready
