@@ -14,6 +14,12 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4  # Pull the latest code from the repo
 
+      - name: Ensure Latest Code is Pulled
+        run: |
+          git fetch --all
+          git reset --hard origin/main
+          git clean -df  # Removes untracked files
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -29,5 +35,4 @@ jobs:
       - name: Run Tests with pytest
         run: |
           source venv/bin/activate
-          pytest  # Run all tests
-
+          pytest -v --tb=short  # Run all tests with detailed output
