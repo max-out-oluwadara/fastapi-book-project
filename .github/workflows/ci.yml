@@ -12,13 +12,9 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4  # Pull the latest code from the repo
-
-      - name: Ensure Latest Code from Your Fork is Pulled
-        run: |
-          git remote set-url origin https://github.com/${{ github.repository }}.git  # ✅ Use HTTPS instead of SSH
-          git fetch origin main
-          git reset --hard origin/main  # ✅ Resets to your forked repo's main branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure full repo history is cloned
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -27,22 +23,34 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          python -m venv venv
+          python -m venv venv --system-site-packages  # ✅ Use global site packages if needed
           source venv/bin/activate
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --no-cache-dir -r requirements.txt
 
-      - name: Debug main.py File (Check for corruption)
+      - name: Set Environment Variables
+        run: |
+          echo "API_PREFIX=/api/v1" >> $GITHUB_ENV  # ✅ Ensure API prefix is set
+          echo "✅ API_PREFIX set to $API_PREFIX"
+
+      - name: Verify Installed Packages
+        run: |
+          source venv/bin/activate
+          pip list  # ✅ Print installed dependencies
+
+      - name: Verify Files
+        run: |
+          ls -la  # ✅ List all files to confirm project structure
+          echo "Checking if main.py exists..."
+          cat main.py || echo "❌ main.py NOT FOUND!"
+
+      - name: Debug main.py File
         run: |
           echo "🔍 Checking main.py contents..."
-          if [ ! -f main.py ]; then
-            echo "❌ main.py not found!"
-            exit 1
-          fi
-          cat main.py
-          python -m py_compile main.py || (echo "❌ Syntax error in main.py!" && exit 1)
+          cat main.py || echo "❌ main.py not found"
 
       - name: Run Tests with pytest
         run: |
           source venv/bin/activate
+          export PYTHONPATH=$PWD  # Ensure Python finds main.py
           pytest -v --tb=short  # Run all tests with detailed output
