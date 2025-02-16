@@ -3,7 +3,7 @@ name: CI Pipeline
 on:
   pull_request:
     branches:
-      - main  # Run tests only when a PR is made to 'main'
+      - main  # Run tests when a PR is made to 'main'
 
 jobs:
   test:
@@ -14,13 +14,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4  # Pull the latest code from the repo
 
-      - name: Ensure Latest Code is Pulled
+      - name: Ensure Latest Code from Your Fork is Pulled
         run: |
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          git remote set-url origin https://github.com/hngprojects/fastapi-book-project.git
-          git fetch --all
-          git reset --hard origin/main
-          git clean -df  # Removes untracked files
+          git remote set-url origin https://github.com/${{ github.repository }}.git  # ✅ Use HTTPS instead of SSH
+          git fetch origin main
+          git reset --hard origin/main  # ✅ Resets to your forked repo's main branch
 
       - name: Set up Python
         uses: actions/setup-python@v4
